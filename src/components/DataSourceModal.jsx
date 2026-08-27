@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Link2, Check, AlertTriangle, FileSpreadsheet, RefreshCw, ExternalLink } from 'lucide-react';
+import { X, Link2, Check, AlertTriangle, FileSpreadsheet, RefreshCw, ExternalLink, HelpCircle } from 'lucide-react';
 import { DEFAULT_SHEET_CSV_URL } from '../config';
+import { normalizeSheetUrl } from '../services/sheetService';
 
 /**
  * Data Source Configuration Modal
@@ -12,29 +13,54 @@ export default function DataSourceModal({ isOpen, onClose, currentUrl, onUpdateU
 
   if (!isOpen) return null;
 
+  const handleInputChange = (e) => {
+    const rawVal = e.target.value;
+    // Auto-normalize if user pastes a standard Google Sheets browser link
+    const normalized = normalizeSheetUrl(rawVal);
+    setInputUrl(normalized);
+    setTestResult(null);
+  };
+
   const handleSave = () => {
-    onUpdateUrl(inputUrl);
+    const finalUrl = normalizeSheetUrl(inputUrl);
+    onUpdateUrl(finalUrl);
     onClose();
   };
 
   const handleTestConnection = async () => {
     setTesting(true);
     setTestResult(null);
+    const targetUrl = normalizeSheetUrl(inputUrl);
     try {
-      const res = await fetch(inputUrl, { method: 'GET', headers: { 'Accept': 'text/csv, text/plain, */*' } });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const res = await fetch(targetUrl, { 
+        method: 'GET', 
+        headers: { 'Accept': 'text/csv, text/plain, */*' },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const txt = await res.text();
         if (txt.includes('<!DOCTYPE html>') || txt.includes('<html')) {
           setTestResult({
             success: false,
-            message: 'Endpoint returned HTML. The sheet might not be published publicly or requires Google login.'
+            message: 'Endpoint returned HTML login page. Ensure "File > Share > Publish to web" is enabled, or "Anyone with the link can view".'
           });
         } else {
           setTestResult({
             success: true,
-            message: `Connection successful! Fetched ${txt.length} bytes of CSV data.`
+            message: `Connection verified! Successfully received ${txt.length} bytes of CSV data.`
           });
         }
+      } else if (res.status === 404) {
+        setTestResult({
+          success: false,
+          message: 'HTTP Error 404: Sheet not found. Please verify the Sheet ID in the URL and ensure the sheet is published to the web.'
+        });
       } else {
         setTestResult({
           success: false,
@@ -42,9 +68,13 @@ export default function DataSourceModal({ isOpen, onClose, currentUrl, onUpdateU
         });
       }
     } catch (err) {
+      let msg = err.message || 'Unable to connect to URL';
+      if (err.name === 'AbortError' || msg.includes('aborted')) {
+        msg = 'Connection timed out. Check network or verify Google Sheet access permissions.';
+      }
       setTestResult({
         success: false,
-        message: `Network/CORS Error: ${err.message || 'Unable to reach URL directly'}`
+        message: msg
       });
     } finally {
       setTesting(false);
@@ -110,8 +140,8 @@ export default function DataSourceModal({ isOpen, onClose, currentUrl, onUpdateU
               <input
                 type="text"
                 value={inputUrl}
-                onChange={(e) => setInputUrl(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/d/..."
+                onChange={handleInputChange}
+                placeholder="Paste Google Sheet URL or CSV export link..."
                 className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
               />
             </div>

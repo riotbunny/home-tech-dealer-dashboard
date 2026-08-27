@@ -94,6 +94,33 @@ function isHeaderRow(row) {
 }
 
 /**
+ * Normalizes any Google Sheet URL (edit, share, pubhtml) into a direct CSV export endpoint.
+ */
+export function normalizeSheetUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+
+  // If already a direct CSV or gviz export URL
+  if (trimmed.includes('tqx=out:csv') || trimmed.includes('export?format=csv') || trimmed.includes('output=csv')) {
+    return trimmed;
+  }
+
+  // Extract sheet ID from standard Google Sheets URL: /spreadsheets/d/([a-zA-Z0-9-_]+)
+  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (match && match[1]) {
+    const sheetId = match[1];
+    
+    // Check if gid is present
+    const gidMatch = trimmed.match(/[?&#]gid=([0-9]+)/);
+    const gid = gidMatch ? gidMatch[1] : '0';
+
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+  }
+
+  return trimmed;
+}
+
+/**
  * Ingests Google Sheet CSV feed using PapaParse.
  * Returns { leads: Array, source: 'live'|'fallback', error: string|null, timestamp: Date }
  */
@@ -102,17 +129,19 @@ export async function fetchSheetLeads(csvUrl) {
     return {
       leads: SAMPLE_LEADS,
       source: 'fallback',
-      error: 'No Sheet CSV URL provided. Using demo leads dataset.',
+      error: 'No Sheet CSV URL provided. Using sample leads dataset.',
       timestamp: new Date()
     };
   }
 
+  const normalizedUrl = normalizeSheetUrl(csvUrl);
+
   try {
     // Attempt fetch with standard timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch(csvUrl, {
+    const response = await fetch(normalizedUrl, {
       method: 'GET',
       headers: {
         'Accept': 'text/csv, text/plain, */*'
@@ -123,6 +152,9 @@ export async function fetchSheetLeads(csvUrl) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('HTTP Error 404: Sheet not found. Please verify the Sheet ID and ensure "File > Share > Publish to web" is enabled.');
+      }
       throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
     }
 
@@ -134,7 +166,7 @@ export async function fetchSheetLeads(csvUrl) {
 
     // Check if Google returned HTML login or error page instead of CSV
     if (csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
-      throw new Error('Google returned HTML instead of CSV (Sheet may be private or URL is inaccessible)');
+      throw new Error('Google returned HTML login page. Please enable "Anyone with the link can view" or publish via "File > Share > Publish to web".');
     }
 
     // Parse CSV with PapaParse
@@ -171,11 +203,15 @@ export async function fetchSheetLeads(csvUrl) {
       timestamp: new Date()
     };
   } catch (err) {
-    console.warn('[SheetService] Live fetch failed, activating fallback dataset:', err.message);
+    let cleanMessage = err.message || 'Failed to fetch live Google Sheet feed';
+    if (err.name === 'AbortError' || cleanMessage.includes('aborted')) {
+      cleanMessage = 'Connection timed out. Google Sheets endpoint is unreachable or blocking CORS.';
+    }
+    console.warn('[SheetService] Live fetch failed, activating fallback dataset:', cleanMessage);
     return {
       leads: SAMPLE_LEADS,
       source: 'fallback',
-      error: err.message || 'Failed to fetch live Google Sheet feed',
+      error: cleanMessage,
       timestamp: new Date()
     };
   }
