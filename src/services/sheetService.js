@@ -94,23 +94,30 @@ function isHeaderRow(row) {
 }
 
 /**
- * Normalizes any Google Sheet URL (edit, share, pubhtml) into a direct CSV export endpoint.
+ * Normalizes any Google Sheet URL (edit, share, pubhtml, published web) into a direct CSV export endpoint.
  */
 export function normalizeSheetUrl(url) {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
 
-  // If already a direct CSV or gviz export URL
+  // If already a direct CSV or gviz export URL with output=csv
   if (trimmed.includes('tqx=out:csv') || trimmed.includes('export?format=csv') || trimmed.includes('output=csv')) {
     return trimmed;
   }
 
-  // Extract sheet ID from standard Google Sheets URL: /spreadsheets/d/([a-zA-Z0-9-_]+)
-  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (match && match[1]) {
+  // Check for Published to Web link: /spreadsheets/d/e/(2PACX-[a-zA-Z0-9-_]+)
+  const pubMatch = trimmed.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
+  if (pubMatch && pubMatch[1]) {
+    const pubId = pubMatch[1];
+    const gidMatch = trimmed.match(/[?&#]gid=([0-9]+)/);
+    const gid = gidMatch ? gidMatch[1] : '0';
+    return `https://docs.google.com/spreadsheets/d/e/${pubId}/pub?gid=${gid}&single=true&output=csv`;
+  }
+
+  // Standard Google Sheets URL: /spreadsheets/d/([a-zA-Z0-9-_]+) (excluding 'e')
+  const match = trimmed.match(/\/spreadsheets\/d\/(?!e\/|\b)([^/?#]+)/);
+  if (match && match[1] && match[1] !== 'e') {
     const sheetId = match[1];
-    
-    // Check if gid is present
     const gidMatch = trimmed.match(/[?&#]gid=([0-9]+)/);
     const gid = gidMatch ? gidMatch[1] : '0';
 
