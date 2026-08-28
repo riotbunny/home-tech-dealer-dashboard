@@ -33,19 +33,19 @@ export default async function handler(req, res) {
   }
 
   const accessToken = process.env.META_ACCESS_TOKEN;
-  let adAccountId = process.env.META_AD_ACCOUNT_ID || 'act_1677753792720663';
-  if (adAccountId && !adAccountId.startsWith('act_')) {
-    adAccountId = `act_${adAccountId}`;
-  }
-
+  let adAccountId = process.env.META_AD_ACCOUNT_ID;
   const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
 
-  if (!accessToken) {
+  if (!accessToken || !adAccountId) {
     return res.status(500).json({
       success: false,
-      error: 'META_ACCESS_TOKEN is not configured.',
+      error: 'META_ACCESS_TOKEN or META_AD_ACCOUNT_ID is not configured in Vercel environment variables.',
       timestamp: new Date().toISOString()
     });
+  }
+
+  if (!adAccountId.startsWith('act_')) {
+    adAccountId = `act_${adAccountId}`;
   }
 
   try {

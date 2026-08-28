@@ -22,10 +22,27 @@ export default async function handler(req, res) {
   }
 
   const accessToken = process.env.META_ACCESS_TOKEN;
-  let adAccountId = process.env.META_AD_ACCOUNT_ID || 'act_1677753792720663';
+  let adAccountId = process.env.META_AD_ACCOUNT_ID;
+
+  if (!accessToken || !adAccountId) {
+    console.warn('[API /spend] Missing META_ACCESS_TOKEN or META_AD_ACCOUNT_ID in environment variables.');
+    return res.status(200).json({
+      success: false,
+      spend: 0,
+      cpc: 0,
+      ctr: 0,
+      impressions: 0,
+      clicks: 0,
+      cpm: 0,
+      datePreset: req.query?.date_preset || 'today',
+      source: 'fallback',
+      error: 'META_ACCESS_TOKEN or META_AD_ACCOUNT_ID is not configured in environment variables.',
+      timestamp: new Date().toISOString()
+    });
+  }
 
   // Ensure adAccountId is formatted with act_ prefix
-  if (adAccountId && !adAccountId.startsWith('act_')) {
+  if (!adAccountId.startsWith('act_')) {
     adAccountId = `act_${adAccountId}`;
   }
 

@@ -29,8 +29,16 @@ export default async function handler(req, res) {
   }
 
   const accessToken = process.env.META_ACCESS_TOKEN;
-  let adAccountId = process.env.META_AD_ACCOUNT_ID || 'act_1677753792720663';
-  if (adAccountId && !adAccountId.startsWith('act_')) {
+  let adAccountId = process.env.META_AD_ACCOUNT_ID;
+
+  if (!accessToken || !adAccountId) {
+    return res.status(500).json({
+      success: false,
+      error: 'META_ACCESS_TOKEN or META_AD_ACCOUNT_ID is not configured in environment variables.'
+    });
+  }
+
+  if (!adAccountId.startsWith('act_')) {
     adAccountId = `act_${adAccountId}`;
   }
 
@@ -43,13 +51,6 @@ export default async function handler(req, res) {
     d.setDate(d.getDate() - 1);
     return d.toISOString().slice(0, 10);
   })();
-
-  if (!accessToken) {
-    return res.status(500).json({
-      success: false,
-      error: 'META_ACCESS_TOKEN is not configured.'
-    });
-  }
 
   try {
     console.log(`[Backfill] Fetching Meta insights from ${startDate} to ${endDate}...`);
