@@ -21,6 +21,8 @@ export default async function handler(req, res) {
   }
 
   const sheetParam = String(req.query?.sheet || '1'); // '1' or '3'
+  const fallbackUrl = sheetParam === '3' ? DEFAULT_SHEET3_URL : DEFAULT_SHEET1_URL;
+  
   let targetUrl = req.query?.url;
 
   if (!targetUrl) {
@@ -31,11 +33,16 @@ export default async function handler(req, res) {
     }
   }
 
+  // If targetUrl contains the outdated broken ID, automatically replace with verified URL
+  if (targetUrl.includes('1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U')) {
+    targetUrl = fallbackUrl;
+  }
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    const sheetRes = await fetch(targetUrl, {
+    let sheetRes = await fetch(targetUrl, {
       method: 'GET',
       headers: {
         'Accept': 'text/csv, text/plain, */*',
@@ -43,6 +50,19 @@ export default async function handler(req, res) {
       },
       signal: controller.signal
     });
+
+    // Self-healing fallback if custom URL fails with 404
+    if (!sheetRes.ok && targetUrl !== fallbackUrl) {
+      console.warn(`[Proxy] Target URL returned ${sheetRes.status}, falling back to verified published URL`);
+      sheetRes = await fetch(fallbackUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/csv, text/plain, */*',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
+        signal: controller.signal
+      });
+    }
 
     clearTimeout(timeoutId);
 
