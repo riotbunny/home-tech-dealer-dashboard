@@ -11,13 +11,16 @@ import {
   Clock, 
   ShieldCheck, 
   Play,
-  Copy
+  Copy,
+  Calendar,
+  Sparkles,
+  Download
 } from 'lucide-react';
 import { DEFAULT_SHEET_CSV_URL, DEFAULT_SHEET_HISTORICAL_URL } from '../config';
 import { normalizeSheetUrl } from '../services/sheetService';
 
 /**
- * Data Source & Cron Automation Configuration Modal
+ * Data Source & Cron Automation Configuration Modal with Historical Backfill
  */
 export default function DataSourceModal({ 
   isOpen, 
@@ -41,6 +44,12 @@ export default function DataSourceModal({
   // Cron test state
   const [cronRunning, setCronRunning] = useState(false);
   const [cronResult, setCronResult] = useState(null);
+
+  // Backfill state
+  const [backfillStartDate, setBackfillStartDate] = useState('2026-08-20');
+  const [backfillRunning, setBackfillRunning] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
+  const [copiedTsv, setCopiedTsv] = useState(false);
 
   if (!isOpen) return null;
 
@@ -119,7 +128,7 @@ export default function DataSourceModal({
     }
   };
 
-  // Test Run Cron Job Handler
+  // Test Run Nightly Cron Job
   const handleTestRunCron = async () => {
     setCronRunning(true);
     setCronResult(null);
@@ -142,13 +151,45 @@ export default function DataSourceModal({
     }
   };
 
+  // Run Historical Backfill (Aug 20 onward)
+  const handleRunBackfill = async () => {
+    setBackfillRunning(true);
+    setBackfillResult(null);
+    setCopiedTsv(false);
+    try {
+      const res = await fetch(`/api/cron/backfill?start_date=${encodeURIComponent(backfillStartDate)}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ht_cron_sec_89d3a7f4e912bc0561a3`
+        }
+      });
+      const data = await res.json();
+      setBackfillResult(data);
+    } catch (err) {
+      setBackfillResult({
+        success: false,
+        error: err.message
+      });
+    } finally {
+      setBackfillRunning(false);
+    }
+  };
+
+  const handleCopyTsv = () => {
+    if (backfillResult?.tsvContent) {
+      navigator.clipboard.writeText(backfillResult.tsvContent);
+      setCopiedTsv(true);
+      setTimeout(() => setCopiedTsv(false), 2500);
+    }
+  };
+
   const isCurrentLive = activeTab === 'sheet1' ? isLiveSheet1 : isLiveSheet3;
   const currentError = activeTab === 'sheet1' ? sheet1Error : sheet3Error;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
       <div 
-        className="relative w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-2xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -159,7 +200,7 @@ export default function DataSourceModal({
             </div>
             <div>
               <h2 className="text-base font-bold text-white">Feeds & Automation Configuration</h2>
-              <p className="text-xs text-slate-400">Sheet 1 (Leads), Sheet 3 (History) & Vercel Cron Job</p>
+              <p className="text-xs text-slate-400">Sheet 1 (Leads), Sheet 3 (History) & Vercel Cron</p>
             </div>
           </div>
           <button
@@ -174,7 +215,7 @@ export default function DataSourceModal({
         <div className="px-6 pt-4 pb-1 flex border-b border-slate-800 gap-2 flex-wrap">
           <button
             onClick={() => { setActiveTab('sheet1'); setTestResult(null); }}
-            className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
               activeTab === 'sheet1'
                 ? 'border-emerald-500 text-emerald-300 bg-emerald-950/30'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -186,7 +227,7 @@ export default function DataSourceModal({
 
           <button
             onClick={() => { setActiveTab('sheet3'); setTestResult(null); }}
-            className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
               activeTab === 'sheet3'
                 ? 'border-purple-500 text-purple-300 bg-purple-950/30'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -198,14 +239,14 @@ export default function DataSourceModal({
 
           <button
             onClick={() => { setActiveTab('cron'); setTestResult(null); }}
-            className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
               activeTab === 'cron'
                 ? 'border-blue-500 text-blue-300 bg-blue-950/30'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Clock className="h-3.5 w-3.5" />
-            <span>Vercel Cron Automation</span>
+            <span>Cron & Backfill Engine</span>
           </button>
         </div>
 
@@ -301,9 +342,9 @@ export default function DataSourceModal({
             </>
           )}
 
-          {/* TAB 3: VERCEL CRON AUTOMATION */}
+          {/* TAB 3: VERCEL CRON & HISTORICAL BACKFILL */}
           {activeTab === 'cron' && (
-            <div className="space-y-4 text-xs">
+            <div className="space-y-5 text-xs">
               
               {/* Cron Status Banner */}
               <div className="p-4 rounded-xl bg-gradient-to-br from-blue-950/40 via-slate-900 to-indigo-950/40 border border-blue-500/30 space-y-2">
@@ -317,44 +358,31 @@ export default function DataSourceModal({
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Every night at 00:05 AM, Vercel triggers <code className="text-blue-300">/api/cron/daily-sync</code> to pull yesterday's Meta ad spend & leads, then appends a new summary row <code className="text-purple-300">[Date, Total Spend, Total Leads, CPL, CTR, CPC]</code> to <strong>Sheet 3</strong>.
+                  Every night at 00:05 AM, Vercel triggers <code className="text-blue-300">/api/cron/daily-sync</code> to pull yesterday's Meta ad spend & leads, then appends a summary row to <strong>Sheet 3</strong>.
                 </p>
+                <div className="pt-1">
+                  <button
+                    onClick={handleTestRunCron}
+                    disabled={cronRunning}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    <Play className={`h-3 w-3 ${cronRunning ? 'animate-spin' : ''}`} />
+                    <span>{cronRunning ? 'Syncing Yesterday...' : 'Test Nightly Sync Now (/api/cron/daily-sync)'}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Security Details */}
-              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1.5">
-                <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                  Security Protection (Bearer Token)
-                </span>
-                <p className="text-[11px] text-slate-400">
-                  Secured with <code className="text-slate-200">CRON_SECRET</code> header verification. Vercel's scheduler sends the bearer token automatically.
-                </p>
-              </div>
-
-              {/* Test Run Cron Button */}
-              <div className="space-y-2 pt-1">
-                <button
-                  onClick={handleTestRunCron}
-                  disabled={cronRunning}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  <Play className={`h-3.5 w-3.5 ${cronRunning ? 'animate-spin' : ''}`} />
-                  <span>{cronRunning ? 'Executing Cron Function...' : 'Test Run Cron Job Now (/api/cron/daily-sync)'}</span>
-                </button>
-              </div>
-
-              {/* Cron Run Output */}
+              {/* Cron Test Output */}
               {cronResult && (
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 font-mono text-[11px]">
                   <div className="flex items-center justify-between text-xs">
                     <span className={cronResult.success ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                      {cronResult.success ? '✓ Cron Executed Successfully' : '✗ Cron Failed'}
+                      {cronResult.success ? '✓ Nightly Sync Successful' : '✗ Sync Failed'}
                     </span>
                     <span className="text-slate-500">{cronResult.date || ''}</span>
                   </div>
                   {cronResult.metrics && (
-                    <div className="text-slate-300 text-[11px] grid grid-cols-2 gap-1 bg-slate-900/80 p-2.5 rounded border border-slate-800">
+                    <div className="text-slate-300 text-[11px] grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-900/80 p-2.5 rounded border border-slate-800">
                       <div>Spend: <strong className="text-white">${cronResult.metrics.totalSpend}</strong></div>
                       <div>Leads: <strong className="text-white">{cronResult.metrics.totalLeads}</strong></div>
                       <div>CPL: <strong className="text-purple-300">${cronResult.metrics.costPerLead}</strong></div>
@@ -366,15 +394,103 @@ export default function DataSourceModal({
                       Sheet 3 Append: <span className="text-slate-300">{cronResult.sheetAppend.message}</span>
                     </p>
                   )}
-                  {cronResult.error && (
-                    <p className="text-rose-400">{cronResult.error}</p>
-                  )}
                 </div>
               )}
 
-              {/* Google Apps Script Hook Info */}
-              <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400">
-                <span>Google Apps Script template is provided in <code className="text-slate-300">scripts/google-apps-script.js</code> for instant 1-click webhook deployment to your sheet.</span>
+              {/* HISTORICAL BACKFILL ENGINE (August 20 onward) */}
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-purple-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-400" />
+                    Historical Backfill Engine (From Aug 20 Onward)
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono text-[10px] font-bold border border-purple-500/30">
+                    Meta Graph API v21.0
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Pulls day-by-day ad spend, impressions, clicks, leads, and CPL from Meta API starting from August 20, 2026 to populate your historical Sheet 3 log.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-400">Start Date:</label>
+                    <input
+                      type="date"
+                      value={backfillStartDate}
+                      onChange={(e) => setBackfillStartDate(e.target.value)}
+                      className="px-2.5 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleRunBackfill}
+                    disabled={backfillRunning}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${backfillRunning ? 'animate-spin' : ''}`} />
+                    <span>{backfillRunning ? 'Fetching Meta Insights...' : 'Run Historical Backfill (/api/cron/backfill)'}</span>
+                  </button>
+                </div>
+
+                {/* Backfill Result Output */}
+                {backfillResult && (
+                  <div className="space-y-3 pt-2">
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className={backfillResult.success ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                          {backfillResult.success ? `✓ Fetched ${backfillResult.totalDays} Days of Meta Insights` : '✗ Backfill Failed'}
+                        </span>
+                        {backfillResult.tsvContent && (
+                          <button
+                            onClick={handleCopyTsv}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-semibold transition-all active:scale-95"
+                          >
+                            {copiedTsv ? <Check className="h-3 w-3 text-white" /> : <Copy className="h-3 w-3" />}
+                            <span>{copiedTsv ? 'Copied TSV to Clipboard!' : 'Copy TSV for Google Sheet'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Display Backfilled Days Table Preview */}
+                      {backfillResult.records && backfillResult.records.length > 0 && (
+                        <div className="overflow-x-auto max-h-48 overflow-y-auto pt-1">
+                          <table className="w-full text-left text-[11px] border-collapse font-mono">
+                            <thead className="text-slate-400 border-b border-slate-800">
+                              <tr>
+                                <th className="py-1 px-2">Date</th>
+                                <th className="py-1 px-2">Spend</th>
+                                <th className="py-1 px-2">Leads</th>
+                                <th className="py-1 px-2">CPL</th>
+                                <th className="py-1 px-2">CTR</th>
+                                <th className="py-1 px-2">CPC</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                              {backfillResult.records.map((r) => (
+                                <tr key={r.id} className="hover:bg-slate-800/40">
+                                  <td className="py-1 px-2 font-bold text-white">{r.date}</td>
+                                  <td className="py-1 px-2">${r.totalSpend}</td>
+                                  <td className="py-1 px-2 text-blue-400">{r.totalLeads}</td>
+                                  <td className="py-1 px-2 text-purple-300">${r.costPerLead}</td>
+                                  <td className="py-1 px-2">{r.ctr}%</td>
+                                  <td className="py-1 px-2">${r.cpc}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {backfillResult.sheetAppend && (
+                        <p className="text-[11px] text-slate-400 pt-1 border-t border-slate-800">
+                          Sheet 3 Append Status: <span className="text-slate-300">{backfillResult.sheetAppend.message}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
               </div>
 
             </div>

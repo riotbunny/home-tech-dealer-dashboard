@@ -1,5 +1,5 @@
 /**
- * Google Apps Script Webhook for Automatic Sheet 3 Appending
+ * Google Apps Script Webhook for Automated Sheet 3 Appending & Backfill
  * 
  * Instructions:
  * 1. Open your Google Sheet.
@@ -8,7 +8,7 @@
  * 4. Click "Deploy" > "New deployment".
  * 5. Select type: "Web app".
  * 6. Set "Execute as": "Me".
- * 7. Set "Who has access": "Anyone" (or anyone with the link).
+ * 7. Set "Who has access": "Anyone".
  * 8. Click "Deploy" and copy the Web App URL.
  * 9. Add this URL as GOOGLE_SHEETS_WEBHOOK_URL in Vercel Environment Variables!
  */
@@ -27,7 +27,18 @@ function doPost(e) {
       sheet.appendRow(['Date', 'Total Spend', 'Total Leads', 'Cost Per Lead (CPL)', 'CTR', 'CPC']);
     }
     
-    // Extract row array: [Date, Total Spend, Total Leads, CPL, CTR, CPC]
+    // Case 1: Bulk rows array (Backfill)
+    if (contents.rows && Array.isArray(contents.rows)) {
+      for (var i = 0; i < contents.rows.length; i++) {
+        sheet.appendRow(contents.rows[i]);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: 'Successfully backfilled ' + contents.rows.length + ' rows to ' + sheetName
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Case 2: Single row array (Nightly cron)
     var rowData = contents.row;
     if (!rowData && contents.data) {
       rowData = [
@@ -50,7 +61,7 @@ function doPost(e) {
     } else {
       return ContentService.createTextOutput(JSON.stringify({
         success: false,
-        error: 'Invalid or missing row data array'
+        error: 'Invalid or missing row data'
       })).setMimeType(ContentService.MimeType.JSON);
     }
     

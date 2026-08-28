@@ -13,13 +13,18 @@ export default defineConfig(({ mode }) => {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url, `http://${req.headers.host}`);
 
-            if (url.pathname === '/api/spend' || url.pathname === '/api/cron/daily-sync') {
+            if (
+              url.pathname === '/api/spend' ||
+              url.pathname === '/api/cron/daily-sync' ||
+              url.pathname === '/api/cron/backfill'
+            ) {
               // Pass environment variables to process.env for local execution
               process.env.META_ACCESS_TOKEN = env.META_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
               process.env.META_AD_ACCOUNT_ID = env.META_AD_ACCOUNT_ID || process.env.META_AD_ACCOUNT_ID;
               process.env.CRON_SECRET = env.CRON_SECRET || process.env.CRON_SECRET;
               process.env.GOOGLE_SHEETS_WEBHOOK_URL = env.GOOGLE_SHEETS_WEBHOOK_URL || process.env.GOOGLE_SHEETS_WEBHOOK_URL;
               process.env.VITE_SHEET_CSV_URL = env.VITE_SHEET_CSV_URL || process.env.VITE_SHEET_CSV_URL;
+              process.env.VITE_SHEET_HISTORICAL_URL = env.VITE_SHEET_HISTORICAL_URL || process.env.VITE_SHEET_HISTORICAL_URL;
 
               try {
                 let handler;
@@ -28,6 +33,9 @@ export default defineConfig(({ mode }) => {
                   handler = mod.default;
                 } else if (url.pathname === '/api/cron/daily-sync') {
                   const mod = await import('./api/cron/daily-sync.js');
+                  handler = mod.default;
+                } else if (url.pathname === '/api/cron/backfill') {
+                  const mod = await import('./api/cron/backfill.js');
                   handler = mod.default;
                 }
 
