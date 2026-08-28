@@ -8,18 +8,28 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       {
-        name: 'local-api-spend-middleware',
+        name: 'local-api-middleware',
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url, `http://${req.headers.host}`);
-            if (url.pathname === '/api/spend') {
-              // Pass environment variables to process.env for local serverless execution
+
+            if (url.pathname === '/api/spend' || url.pathname === '/api/cron/daily-sync') {
+              // Pass environment variables to process.env for local execution
               process.env.META_ACCESS_TOKEN = env.META_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
               process.env.META_AD_ACCOUNT_ID = env.META_AD_ACCOUNT_ID || process.env.META_AD_ACCOUNT_ID;
+              process.env.CRON_SECRET = env.CRON_SECRET || process.env.CRON_SECRET;
+              process.env.GOOGLE_SHEETS_WEBHOOK_URL = env.GOOGLE_SHEETS_WEBHOOK_URL || process.env.GOOGLE_SHEETS_WEBHOOK_URL;
+              process.env.VITE_SHEET_CSV_URL = env.VITE_SHEET_CSV_URL || process.env.VITE_SHEET_CSV_URL;
 
               try {
-                // Dynamically import handler
-                const { default: handler } = await import('./api/spend.js');
+                let handler;
+                if (url.pathname === '/api/spend') {
+                  const mod = await import('./api/spend.js');
+                  handler = mod.default;
+                } else if (url.pathname === '/api/cron/daily-sync') {
+                  const mod = await import('./api/cron/daily-sync.js');
+                  handler = mod.default;
+                }
 
                 // Polyfill minimal res helper for Express-like Vercel functions
                 const query = Object.fromEntries(url.searchParams.entries());
