@@ -4,6 +4,9 @@
  * and mobile network isolation issues when fetching Google Sheets on mobile phones / PWAs.
  */
 
+const DEFAULT_SHEET1_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPyjot8fPjGZLgO-N0so6AmhAKqzUdHg5YNAkLYu1_nVyHxQR1ydEmir9mzWQN5kLOqJBuToOhyUyj/pub?output=csv';
+const DEFAULT_SHEET3_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPyjot8fPjGZLgO-N0so6AmhAKqzUdHg5YNAkLYu1_nVyHxQR1ydEmir9mzWQN5kLOqJBuToOhyUyj/pub?gid=1621694904&single=true&output=csv';
+
 export default async function handler(req, res) {
   // Allow all origins & disable caching so mobile phones get real-time updates
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,14 +20,14 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const sheetParam = req.query?.sheet || '1'; // '1' or '3'
+  const sheetParam = String(req.query?.sheet || '1'); // '1' or '3'
   let targetUrl = req.query?.url;
 
   if (!targetUrl) {
     if (sheetParam === '3') {
-      targetUrl = process.env.VITE_SHEET_HISTORICAL_URL || process.env.SHEET_HISTORICAL_URL || 'https://docs.google.com/spreadsheets/d/1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U/gviz/tq?tqx=out:csv&sheet=Sheet3';
+      targetUrl = process.env.VITE_SHEET_HISTORICAL_URL || process.env.SHEET_HISTORICAL_URL || DEFAULT_SHEET3_URL;
     } else {
-      targetUrl = process.env.VITE_SHEET_CSV_URL || process.env.SHEET_CSV_URL || 'https://docs.google.com/spreadsheets/d/1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U/gviz/tq?tqx=out:csv&sheet=Sheet1';
+      targetUrl = process.env.VITE_SHEET_CSV_URL || process.env.SHEET_CSV_URL || DEFAULT_SHEET1_URL;
     }
   }
 
