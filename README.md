@@ -1,65 +1,44 @@
 # Home Tech Dealer Leads & Meta Ad Intelligence Dashboard
 
-A full-stack operational dashboard built with **React**, **Vite**, **Tailwind CSS**, and **Vercel Serverless Functions**. It connects live lead flow from the "Home Tech Dealer Leads" Google Sheet (Sheet 1 / `gid=0`) with automated daily ad spend and performance metrics from the **Meta Marketing (Graph) API**.
+A full-stack operational dashboard built with **React**, **Vite**, **Tailwind CSS**, and **Vercel Serverless Functions**. It combines live lead flow from **Sheet 1**, automated daily ad spend from the **Meta Marketing (Graph) API**, and historical daily campaign performance from **Sheet 3**.
 
 ---
 
 ## ⚡ Features
 
+- **Interactive View Toggle**: Seamlessly switch between:
+  - 🟢 **Live Leads (Sheet 1)**: Operational real-time backend monitoring, column mapping (A-I), soft status badges, multi-field search, and lead dossier inspection.
+  - 📊 **Historical Log (Sheet 3)**: Daily performance analytics tracking Date, Total Spend, Total Leads, Cost Per Lead (CPL), CTR, and CPC with summary KPIs.
 - **Automated Daily Meta Ad Spend**: Secure Vercel Serverless Function (`/api/spend`) querying Meta Graph API v21.0 for real-time daily spend, impressions, link clicks, CPC, and CTR.
-- **Cost Per Lead (CPL) Engine**: Dynamically calculates live Cost Per Lead:
+- **Live Cost Per Lead (CPL) Engine**: Dynamically calculates live CPL:
   $$\text{CPL} = \frac{\text{Today's Total Ad Spend}}{\text{Today's Total Leads}}$$
-- **Live Google Sheet Ingestion**: Ingests live data directly from the Sheet 1 CSV feed URL using **PapaParse**.
-- **Strict Data Schema**: Maps Columns A through I and strictly omits Columns J and K.
-  - Column A: `fullName`
-  - Column B: `phone` (with click-to-call & quick copy)
-  - Column C: `address`
-  - Column D: `usage`
-  - Column E: `timestamp` (with relative & formatted timestamps)
-  - Column F: `status` (soft glowing badges for active states)
-  - Column G: `dripDay`
-  - Column H: `City`
-  - Column I: `State`
-- **Real-Time Operational Metrics**:
-  - Total Record Count
-  - Today's Lead Volume
-  - Today's Total Ad Spend
-  - Live Cost Per Lead (CPL)
-  - Avg. CPC, CTR, Clicks, and Impressions
-- **Interactive Meta Campaign Modal**: Inspect ad metrics across date presets (`today`, `yesterday`, `last_7d`, `this_month`, `maximum`).
-- **Real-Time Search & Filtering**: Multi-field text search + Status, State, and Drip Day selectors.
-- **Sortable & Paginated Table**: Full column sorting and customizable page sizes (10, 25, 50, 100).
-- **Lead Dossier Drawer**: Click any lead row to inspect full profile details and initiate quick actions.
-- **Export to CSV**: Export filtered or full datasets instantly.
+- **Multi-Sheet Ingestion**: Uses **PapaParse** to ingest both Sheet 1 and Sheet 3 CSV feeds dynamically on load with offline fallback safety.
+- **Export to CSV**: Export filtered live leads or full Sheet 3 historical daily performance logs with one click.
 
 ---
 
 ## 🔐 Environment Variables
 
-Configure the following environment variables in `.env` for local development and in **Vercel Project Settings**:
-
-| Variable Name | Description | Example / Current Value |
+| Variable Name | Description | Default / Example Value |
 | :--- | :--- | :--- |
-| `VITE_SHEET_CSV_URL` | Google Sheet CSV export endpoint | `https://docs.google.com/spreadsheets/d/1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U/gviz/tq?tqx=out:csv&sheet=Sheet1` |
-| `META_ACCESS_TOKEN` | Meta System User / Long-Lived User Access Token | `EAAblQds0dvIBSY6owb...` |
-| `META_AD_ACCOUNT_ID` | Meta Ad Account ID (prefixed with `act_`) | `act_1677753792720663` |
+| `VITE_SHEET_CSV_URL` | Google Sheet 1 CSV export (Live Leads) | `https://docs.google.com/spreadsheets/d/1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U/gviz/tq?tqx=out:csv&sheet=Sheet1` |
+| `VITE_SHEET_HISTORICAL_URL` | Google Sheet 3 CSV export (Historical Performance) | `https://docs.google.com/spreadsheets/d/1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U/gviz/tq?tqx=out:csv&sheet=Sheet3` |
+| `META_ACCESS_TOKEN` | Meta System User / Long-Lived Token | `EAAblQds0dvIBSY6owb...` |
+| `META_AD_ACCOUNT_ID` | Meta Ad Account ID | `act_1677753792720663` |
 
 ---
 
 ## 🚀 Getting Started Locally
 
 ```bash
-# 1. Navigate to directory
-cd home-tech-dealer-dashboard
-
-# 2. Install dependencies
+# 1. Install dependencies
 npm install
 
-# 3. Start local development server (includes /api/spend local emulation)
+# 2. Start local development server (with /api/spend serverless emulation)
 npm run dev
 ```
 
-Open your browser at `http://localhost:3000`.
+Open `http://localhost:3000`.
 
 ---
 
@@ -67,7 +46,7 @@ Open your browser at `http://localhost:3000`.
 
 ```bash
 git add .
-git commit -m "feat: integrate Meta Marketing API ad spend and CPL tracking"
+git commit -m "feat: add Sheet 3 historical daily performance view with navigation toggle"
 git push origin main
 ```
 
@@ -75,26 +54,6 @@ git push origin main
 
 ## ▲ Deploy to Vercel
 
-### Step 1: Import Project to Vercel
-1. Log in to [Vercel](https://vercel.com).
-2. Click **"Add New Project"** and select **`riotbunny/home-tech-dealer-dashboard`**.
-3. Framework Preset will auto-detect **Vite**.
-
-### Step 2: Set Environment Variables
-Under **Environment Variables**, add the 3 required variables:
-
-1. **`VITE_SHEET_CSV_URL`**:
-   ```
-   https://docs.google.com/spreadsheets/d/1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U/gviz/tq?tqx=out:csv&sheet=Sheet1
-   ```
-2. **`META_ACCESS_TOKEN`**:
-   ```
-   EAAblQds0dvIBSY6owb2nXa4TeHq92ekZCPEqdFZBWPiJSAUlmO0QVEFMsTzDOXFmsOQqhufnZAX2IWsefnl57ydw23JFW5Nc0y6BTPEhXNuflTz5oyQm1QGzGpMjDqcAhbmpJkH3xkLUDVfSVnTdaWQ00R0Sk6lrlO6sWOPJp1AQUir470A7FMBgi56eE0ptAZDZD
-   ```
-3. **`META_AD_ACCOUNT_ID`**:
-   ```
-   act_1677753792720663
-   ```
-
-### Step 3: Deploy
-Click **Deploy**. Vercel will automatically build the React Vite frontend and deploy the `/api/spend` serverless function on the edge!
+1. Import the repository `riotbunny/home-tech-dealer-dashboard` into [Vercel](https://vercel.com).
+2. Configure the 4 Environment Variables (`VITE_SHEET_CSV_URL`, `VITE_SHEET_HISTORICAL_URL`, `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`).
+3. Click **Deploy**.
