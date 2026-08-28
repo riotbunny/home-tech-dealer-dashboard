@@ -144,28 +144,46 @@ export async function fetchSheetLeads(csvUrl) {
   const normalizedUrl = normalizeSheetUrl(csvUrl);
 
   try {
-    // Attempt fetch with standard timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    let csvText = '';
 
-    const response = await fetch(normalizedUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/csv, text/plain, */*'
-      },
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('HTTP Error 404: Sheet not found. Please verify the Sheet ID and ensure "File > Share > Publish to web" is enabled.');
+    // Strategy 1: Use same-origin serverless proxy (/api/sheet?sheet=1) to prevent mobile Safari/Chrome CORS blocks
+    try {
+      const proxyUrl = `/api/sheet?sheet=1&url=${encodeURIComponent(normalizedUrl)}&_t=${Date.now()}`;
+      const proxyRes = await fetch(proxyUrl, { headers: { 'Accept': 'text/plain, text/csv, */*' } });
+      if (proxyRes.ok) {
+        const text = await proxyRes.text();
+        if (text && !text.includes('<!DOCTYPE html>') && !text.includes('<html')) {
+          csvText = text;
+        }
       }
-      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    } catch (proxyErr) {
+      console.warn('[SheetService] Serverless proxy fetch bypassed, attempting direct fetch:', proxyErr.message);
     }
 
-    const csvText = await response.text();
+    // Strategy 2: Direct fetch fallback
+    if (!csvText) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(normalizedUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/csv, text/plain, */*'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('HTTP Error 404: Sheet not found. Please verify the Sheet ID and ensure "File > Share > Publish to web" is enabled.');
+        }
+        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+      }
+
+      csvText = await response.text();
+    }
 
     if (!csvText || csvText.trim().length === 0) {
       throw new Error('Received empty response from CSV endpoint');

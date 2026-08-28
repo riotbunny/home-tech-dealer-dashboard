@@ -115,27 +115,46 @@ export async function fetchHistoricalPerformance(csvUrl) {
   const normalizedUrl = normalizeSheetUrl(csvUrl);
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    let csvText = '';
 
-    const response = await fetch(normalizedUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/csv, text/plain, */*'
-      },
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('HTTP 404: Sheet 3 not found. Check sheet name "Sheet3" and web publish settings.');
+    // Strategy 1: Use same-origin serverless proxy (/api/sheet?sheet=3) to prevent mobile Safari/Chrome CORS blocks
+    try {
+      const proxyUrl = `/api/sheet?sheet=3&url=${encodeURIComponent(normalizedUrl)}&_t=${Date.now()}`;
+      const proxyRes = await fetch(proxyUrl, { headers: { 'Accept': 'text/plain, text/csv, */*' } });
+      if (proxyRes.ok) {
+        const text = await proxyRes.text();
+        if (text && !text.includes('<!DOCTYPE html>') && !text.includes('<html')) {
+          csvText = text;
+        }
       }
-      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    } catch (proxyErr) {
+      console.warn('[HistoricalService] Serverless proxy fetch bypassed, attempting direct fetch:', proxyErr.message);
     }
 
-    const csvText = await response.text();
+    // Strategy 2: Direct fetch fallback
+    if (!csvText) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(normalizedUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/csv, text/plain, */*'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('HTTP 404: Sheet 3 not found. Check sheet name "Sheet3" and web publish settings.');
+        }
+        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+      }
+
+      csvText = await response.text();
+    }
 
     if (!csvText || csvText.trim().length === 0) {
       throw new Error('Received empty response from Sheet 3 CSV endpoint');

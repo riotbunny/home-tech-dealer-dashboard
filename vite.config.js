@@ -16,7 +16,8 @@ export default defineConfig(({ mode }) => {
             if (
               url.pathname === '/api/spend' ||
               url.pathname === '/api/cron/daily-sync' ||
-              url.pathname === '/api/cron/backfill'
+              url.pathname === '/api/cron/backfill' ||
+              url.pathname === '/api/sheet'
             ) {
               // Pass environment variables to process.env for local execution
               process.env.META_ACCESS_TOKEN = env.META_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
@@ -36,6 +37,9 @@ export default defineConfig(({ mode }) => {
                   handler = mod.default;
                 } else if (url.pathname === '/api/cron/backfill') {
                   const mod = await import('./api/cron/backfill.js');
+                  handler = mod.default;
+                } else if (url.pathname === '/api/sheet') {
+                  const mod = await import('./api/sheet.js');
                   handler = mod.default;
                 }
 
