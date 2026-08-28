@@ -199,10 +199,6 @@ export async function fetchSheetLeads(csvUrl) {
       .filter(row => Array.isArray(row) && row.some(cell => String(cell || '').trim().length > 0))
       .map((row, index) => mapRowToLead(row, index));
 
-    if (leads.length === 0) {
-      throw new Error('No valid lead rows found in Google Sheet feed');
-    }
-
     return {
       leads,
       source: 'live',

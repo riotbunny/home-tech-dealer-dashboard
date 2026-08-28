@@ -330,70 +330,90 @@ export default function HistoricalTable({ records = [], isLoading }) {
 
             {/* Table Body */}
             <tbody className="divide-y divide-slate-800/60 font-normal text-slate-300">
-              {filteredAndSortedRecords.map((row) => {
-                // CPL Badge Color Coding
-                const cpl = row.costPerLead;
-                let cplBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
-                if (cpl > 0 && cpl <= 20) {
-                  cplBadgeClass = 'bg-emerald-950/70 text-emerald-300 border-emerald-500/30';
-                } else if (cpl > 20 && cpl <= 25) {
-                  cplBadgeClass = 'bg-purple-950/70 text-purple-300 border-purple-500/30';
-                } else if (cpl > 25) {
-                  cplBadgeClass = 'bg-amber-950/70 text-amber-300 border-amber-500/30';
-                }
-
-                return (
-                  <tr key={row.id} className="hover:bg-slate-800/50 transition-colors group">
-                    
-                    {/* Date */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-slate-500 group-hover:text-purple-400 transition-colors" />
-                        <span className="font-semibold text-slate-100 font-mono text-xs">
-                          {row.date}
-                        </span>
+              {filteredAndSortedRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="h-10 w-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-2">
+                        <Calendar className="h-5 w-5" />
                       </div>
-                    </td>
+                      <h4 className="text-sm font-semibold text-slate-200">
+                        {records.length === 0 ? 'Sheet 3 Connected (Awaiting First Log)' : 'No records match your date search'}
+                      </h4>
+                      <p className="text-xs text-slate-400 max-w-sm mt-1">
+                        {records.length === 0 
+                          ? 'Your Google Sheet 3 is connected live and currently blank. The nightly cron job will automatically append yesterday\'s summary row here at 00:05 AM UTC.'
+                          : 'Try changing your search term to see other historical dates.'}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredAndSortedRecords.map((row) => {
+                  // CPL Badge Color Coding
+                  const cpl = row.costPerLead;
+                  let cplBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
+                  if (cpl > 0 && cpl <= 20) {
+                    cplBadgeClass = 'bg-emerald-950/70 text-emerald-300 border-emerald-500/30';
+                  } else if (cpl > 20 && cpl <= 25) {
+                    cplBadgeClass = 'bg-purple-950/70 text-purple-300 border-purple-500/30';
+                  } else if (cpl > 25) {
+                    cplBadgeClass = 'bg-amber-950/70 text-amber-300 border-amber-500/30';
+                  }
 
-                    {/* Total Spend */}
-                    <td className="py-3.5 px-4">
-                      <span className="font-semibold text-slate-100 font-mono text-xs">
-                        {formatCurrency(row.totalSpend)}
-                      </span>
-                    </td>
+                  return (
+                    <tr key={row.id} className="hover:bg-slate-800/50 transition-colors group">
+                      
+                      {/* Date */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-slate-500 group-hover:text-purple-400 transition-colors" />
+                          <span className="font-semibold text-slate-100 font-mono text-xs">
+                            {row.date}
+                          </span>
+                        </div>
+                      </td>
 
-                    {/* Total Leads */}
-                    <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-950/60 text-blue-300 border border-blue-500/30 font-mono">
-                        {row.totalLeads} {row.totalLeads === 1 ? 'lead' : 'leads'}
-                      </span>
-                    </td>
+                      {/* Total Spend */}
+                      <td className="py-3.5 px-4">
+                        <span className="font-semibold text-slate-100 font-mono text-xs">
+                          {formatCurrency(row.totalSpend)}
+                        </span>
+                      </td>
 
-                    {/* Cost Per Lead (CPL) */}
-                    <td className="py-3.5 px-4">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border font-mono ${cplBadgeClass}`}>
-                        <span>{formatCurrency(row.costPerLead)}</span>
-                        <span className="text-[10px] opacity-75 font-normal">/lead</span>
-                      </span>
-                    </td>
+                      {/* Total Leads */}
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-950/60 text-blue-300 border border-blue-500/30 font-mono">
+                          {row.totalLeads} {row.totalLeads === 1 ? 'lead' : 'leads'}
+                        </span>
+                      </td>
 
-                    {/* CTR */}
-                    <td className="py-3.5 px-4">
-                      <span className="font-mono text-purple-300 font-semibold text-xs">
-                        {row.ctr.toFixed(2)}%
-                      </span>
-                    </td>
+                      {/* Cost Per Lead (CPL) */}
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border font-mono ${cplBadgeClass}`}>
+                          <span>{formatCurrency(row.costPerLead)}</span>
+                          <span className="text-[10px] opacity-75 font-normal">/lead</span>
+                        </span>
+                      </td>
 
-                    {/* CPC */}
-                    <td className="py-3.5 px-4">
-                      <span className="font-mono text-emerald-400 font-semibold text-xs">
-                        {formatCurrency(row.cpc)}
-                      </span>
-                    </td>
+                      {/* CTR */}
+                      <td className="py-3.5 px-4">
+                        <span className="font-mono text-purple-300 font-semibold text-xs">
+                          {row.ctr.toFixed(2)}%
+                        </span>
+                      </td>
 
-                  </tr>
-                );
-              })}
+                      {/* CPC */}
+                      <td className="py-3.5 px-4">
+                        <span className="font-mono text-emerald-400 font-semibold text-xs">
+                          {formatCurrency(row.cpc)}
+                        </span>
+                      </td>
+
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
 
           </table>

@@ -166,10 +166,6 @@ export async function fetchHistoricalPerformance(csvUrl) {
       .map((row, idx) => mapRowToHistorical(row, idx))
       .filter(Boolean);
 
-    if (records.length === 0) {
-      throw new Error('No valid daily performance rows found in Sheet 3');
-    }
-
     return {
       records,
       source: 'live',
