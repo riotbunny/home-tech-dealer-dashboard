@@ -17,22 +17,15 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const sheetParam = req.query?.sheet; // '1' or '3'
+  const sheetParam = req.query?.sheet || '1'; // '1' or '3'
   let targetUrl = req.query?.url;
 
   if (!targetUrl) {
     if (sheetParam === '3') {
-      targetUrl = process.env.VITE_SHEET_HISTORICAL_URL;
+      targetUrl = process.env.VITE_SHEET_HISTORICAL_URL || process.env.SHEET_HISTORICAL_URL || 'https://docs.google.com/spreadsheets/d/1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U/gviz/tq?tqx=out:csv&sheet=Sheet3';
     } else {
-      targetUrl = process.env.VITE_SHEET_CSV_URL;
+      targetUrl = process.env.VITE_SHEET_CSV_URL || process.env.SHEET_CSV_URL || 'https://docs.google.com/spreadsheets/d/1ByosXXUL-go3Bpag7NBrt3i7DgMMw1_eh_9xl2U/gviz/tq?tqx=out:csv&sheet=Sheet1';
     }
-  }
-
-  if (!targetUrl) {
-    return res.status(400).json({
-      success: false,
-      error: `No URL configured for sheet ${sheetParam || '1'}. Please configure VITE_SHEET_CSV_URL or VITE_SHEET_HISTORICAL_URL.`
-    });
   }
 
   try {
